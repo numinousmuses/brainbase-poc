@@ -1,36 +1,151 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Brainbase Kafka POC
 
-## Getting Started
+---
 
-First, run the development server:
+## Approach
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. **Plan the System**
+2. **Build the System**
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Architecture Overview
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Frontend
 
-## Learn More
+**Technologies:**
+- **Framework:** Next.js (TypeScript)
+- **Styling:** Tailwind CSS
+- **Additional:** Sharon (UI component framework or design system)
 
-To learn more about Next.js, take a look at the following resources:
+**Pages & Key Components:**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Login (/login):**
+  - Acts as both login and signup.
+  - Users enter their email; a UUID is generated and stored on the backend.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Dashboard (/dashboard):**
+  - Lists all workspaces.
+  - Options to:
+    - Create new workspaces (with an optional file upload)
+    - Rename and delete workspaces
 
-## Deploy on Vercel
+- **Workspace (/workspace/{workspaceID}):**
+  - Displays a list of chats within the workspace.
+  - Features:
+    - Chat list with title, last edited time, and action buttons (open, chat, rename, delete).
+    - Ability to create new chats.
+    - File upload and deletion.
+  - **Note:** Workspaces serve as file systems, and users can choose which files are used as context for each chat. Multi-workspace support is included.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Chat (/chat/{chatID}):**
+  - Main chat interface including:
+    - A canvas for agent-based code.
+    - File management: view chat files and add workspace files to the chat context.
+    - Buttons/links to interact with the agent.
+    - Option to select integrations.
+    - Agent version history with diff comparisons.
+    - Minimalist mode option.
+  
+- **Agent (/agent/{agentID}):**
+  - Dedicated interface to interact directly with a specific agent.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Settings (/settings):**
+  - Input model API keys (with a fallback to an open router key).
+  - Set maximum iterations for agent interactions.
+
+**UI Elements:**
+- Workspace Section
+- Explorer Section
+- File Section
+- Chat UI components (Context, Help, Send)
+
+---
+
+### Backend
+
+**Technologies:**
+- **Language:** Python
+- **Framework:** FastAPI
+- **Communication:** Websockets
+
+**Core Functions & Endpoints:**
+
+- **Authentication:**
+  - Email-based login.
+  - Checks for existing email; if new, generates and returns a UUID as a session token.
+
+- **Workspace Management:**
+  - Retrieve workspaces.
+  - Create, rename, and delete workspaces.
+  - Upload and delete files (supporting PDFs, text files, and images).
+
+- **Chat Management:**
+  - Create, rename, and delete chats.
+  - Start chat sessions via websockets.
+  - Persist chat history, files, messages, and version history.
+
+- **Agent Interaction:**
+  - **Based Agent (Initial Message Handling):**
+    - Processes the first message using a “based guide” and an engineered prompt.
+    - Integrates context from files (text extraction, image handling).
+    - Supports multiple reasoning models (e.g., Claude 3.7, o1, o3mini, QWQ).
+    - Validates output via an API and allows iterative reprompting (max 5 iterations).
+  
+  - **Iterator Agent (Diff Generation and Application):**
+    - Generates and applies diffs to update the agent’s output.
+    - Checks diff validity and reprompts if necessary (max 5 iterations).
+    - Updates chat with the new version and displays diff comparisons.
+
+- **Additional Functionalities:**
+  - File upload handling and assignment to chats.
+  - Context filtering to determine which parts of files should be sent as context.
+  - Handling websocket disconnections:
+    - Persist chat state, file associations, messages, and version history.
+
+---
+
+### Milestones
+
+1. **Agent for Code Writing and Iteration:**
+   - Develop an agent capable of generating and refining code.
+
+2. **Agent for Diff Generation and Application:**
+   - Create an agent that can produce diffs and apply them to update code.
+
+3. **WebSocket Agent Integration:**
+   - Implement the agent to work over websockets for real-time communication.
+
+4. **Client Chat Interface:**
+   - Build the frontend chat client to interact with the websocket agent.
+
+---
+
+## Additional Notes
+
+- **Single-Page Application (SPA):**
+  - Simplified authentication for the proof of concept.
+  - Users can manage agents, chats, and workspaces seamlessly.
+
+- **Multi-Workspace Support:**
+  - Allows the user to manage multiple file systems.
+  - Each chat can select which workspace files serve as context.
+
+- **Agent Version Management:**
+  - Track version history.
+  - Allow users to revert to previous agent versions.
+
+- **Tool Integration:**
+  - Provide a full list of available tools to the agent.
+  - Consider future enhancements to prescreen for necessary integrations to reduce prompt clutter.
+
+---
+
+## Next Steps after POC
+
+- **Scalability Enhancements**
+- **Security Improvements**
+- **File Viewing Capabilities**
+- **Agent Testing**
+- **UI/UX and Responsiveness Improvements**
+
