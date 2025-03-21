@@ -18,5 +18,11 @@ export interface AuthResponse {
     user_id: string;
     email: string;
     workspaces: WorkspaceType[];
-  }
-  
+}
+
+export interface ModelType {
+  id: string;
+  name: string;
+  base_url: string;
+  user_id: string;
+}

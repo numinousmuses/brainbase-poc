@@ -29,6 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 
 import { Upload, Trash, Edit, Settings, Plus, X } from "lucide-react";
+import { ModelType } from "@/lib/interfaces";
 
 interface FileType {
   id: string;
@@ -72,6 +73,10 @@ export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
   const [newChatName, setNewChatName] = useState("");
   const [selectedFilesForChat, setSelectedFilesForChat] = useState<string[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [models, setModels] = useState<ModelType[]>([]);
+  const [newModelName, setNewModelName] = useState("");
+  const [newModelAk, setNewModelAk] = useState("");
+  const [newModelBaseUrl, setNewModelBaseUrl] = useState("");
 
   // Handlers for files
   const handleUploadWorkspaceFile = async () => {
@@ -324,6 +329,53 @@ export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
     }
   };
 
+  const handleAddNewModel = async () => {
+    const formData = new FormData();
+    formData.append("user_id", userId);
+    formData.append("name", newModelName);
+    formData.append("ak", newModelAk);
+    formData.append("base_url", newModelBaseUrl);
+  
+    try {
+      const res = await fetch("http://127.0.0.1:8000/models/new", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        throw new Error(`Add model failed with status ${res.status}`);
+      }
+      const data = await res.json();
+      console.log("New model response:", data);
+      // Append the new model to the models state.
+      setModels((prevModels) => [...prevModels, data]);
+      // Clear inputs.
+      setNewModelName("");
+      setNewModelAk("");
+      setNewModelBaseUrl("");
+    } catch (error) {
+      console.error("Error adding new model:", error);
+    }
+  };
+
+  
+  const handleDeleteModel = async (modelId: string) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/models/delete/${modelId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error(`Delete model failed with status ${res.status}`);
+      }
+      const data = await res.json();
+      console.log("Delete model response:", data);
+      // Remove the deleted model from state.
+      setModels((prevModels) => prevModels.filter((model) => model.id !== modelId));
+    } catch (error) {
+      console.error("Error deleting model:", error);
+    }
+  };
+  
+
   return (
     <div className="flex h-screen bg-neutral-950 text-neutral-100">
       {/* Left Pane */}
@@ -528,15 +580,44 @@ export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
           </DialogHeader>
-          {/* TODO: List user models and include a form to add a new model */}
           <div className="space-y-4 py-2">
             <p className="text-sm text-neutral-400">User Models:</p>
-            {/* Placeholder for models list */}
-            <div className="border border-neutral-800 p-2">Model A</div>
-            <div className="border border-neutral-800 p-2">Model B</div>
-            <Button variant="outline" className="mt-2 cursor-pointer">
-              Add New Model
-            </Button>
+            {models.length > 0 ? (
+              models.map((model) => (
+                <div key={model.id} className="flex items-center justify-between border border-neutral-800 p-2">
+                  <div>
+                    <p className="font-semibold">{model.name}</p>
+                    <p className="text-xs">{model.base_url}</p>
+                  </div>
+                  <Button variant="destructive" size="icon" onClick={() => handleDeleteModel(model.id)} className="cursor-pointer">
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-neutral-500">No models added.</p>
+            )}
+            <div className="mt-4 space-y-2">
+              <Input
+                placeholder="Model Name"
+                value={newModelName}
+                onChange={(e) => setNewModelName(e.target.value)}
+              />
+              <Input
+                placeholder="API Key"
+                value={newModelAk}
+                onChange={(e) => setNewModelAk(e.target.value)}
+                type="password"
+              />
+              <Input
+                placeholder="Base URL"
+                value={newModelBaseUrl}
+                onChange={(e) => setNewModelBaseUrl(e.target.value)}
+              />
+              <Button onClick={handleAddNewModel} className="mt-2">
+                Add New Model
+              </Button>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="destructive" onClick={() => setSettingsOpen(false)} className="cursor-pointer">
