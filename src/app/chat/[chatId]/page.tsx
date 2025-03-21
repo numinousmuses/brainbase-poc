@@ -23,13 +23,17 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { History, MessageSquare, Upload } from "lucide-react";
+import { History, MessageSquare, Upload, CircleHelp, Send } from "lucide-react";
+import { Switch } from "@/components/ui/switch"
 
 export default function ChatPage() {
   const router = useRouter();
 
   // State for the code viewer (left panel)
   const [selectedBasedFileContent, setSelectedBasedFileContent] = useState<string>("print('Hello from default based file')");
+
+  // state for chat or composer mode
+  const [isChatOrComposer, setIsChatOrComposer] = useState(false); // if false is composer
   
   // Breadcrumbs
   const [breadcrumbWorkspace, setBreadcrumbWorkspace] = useState("My Workspace");
@@ -179,8 +183,8 @@ export default function ChatPage() {
                 {viewMode === "chat" ? (
                   <div>
                     {chatHistory.map((msg, idx) => (
-                      <div key={idx} className={`mb-2 p-2 rounded ${msg.role === "user" ? "bg-blue-800" : "bg-green-800"}`}>
-                        <strong>{msg.role}:</strong> {msg.content}
+                      <div key={idx} className={`mb-2 p-2 rounded ${msg.role === "user" ? "bg-neutral-800" : "bg-neutral-950"}`}>
+                        {msg.content}
                       </div>
                     ))}
                   </div>
@@ -203,22 +207,30 @@ export default function ChatPage() {
               <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 w-full max-w-2xl border p-5 bg-neutral-950">
                 <Textarea
                   placeholder="Enter message..."
-                  className="w-full p-2 border rounded mb-5  text-white"
+                  className="w-full p-4 border rounded-5 mb-5  text-white"
                   rows={3}
                   value={promptText}
                   onChange={(e) => setPromptText(e.target.value)}
                 />
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex items-center">
                     {/* Placeholder for chat/composer switch */}
-                    <span>Switch (chat/composer)</span>
+                    <Switch onCheckedChange={setIsChatOrComposer} />
+                    
+                    <span className="ml-2">{isChatOrComposer ? "CHAT" : "COMPOSER"}</span>
+                    <div className="ml-4">
+                        {/* Placeholder for help icon */}
+                        <Button variant="ghost" className="cursor-pointer">
+                            <CircleHelp />
+                            Help
+                        </Button>
+                    </div>
                   </div>
+                  
                   <div>
-                    {/* Placeholder for help icon */}
-                    <Button variant="ghost">Help</Button>
-                  </div>
-                  <div>
-                    <Button>Send</Button>
+                    <Button className="cursor-pointer">
+                        <Send />
+                    </Button>
                   </div>
                 </div>
               </div>

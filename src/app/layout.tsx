@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Kafka - Vibe code AI agents",
+  title: "Kafka- Vibe code AI gents",
   description: "Vibe code AI Agents",
 };
 

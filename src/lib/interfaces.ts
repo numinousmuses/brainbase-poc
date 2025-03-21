@@ -63,6 +63,7 @@ export interface WorkspaceFile {
 
 export interface WsInitialPayload {
   chat_id: string;
+  chat_name: string;
   conversation: ChatMessage[];
   chat_files_text: ChatFileText[];
   chat_files_based: ChatFileBased[];
