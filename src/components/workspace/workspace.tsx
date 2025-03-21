@@ -120,15 +120,49 @@ export default function Workspace({ workspaceData }: { workspaceData: WorkspaceT
     fileInput.click();
   };
 
-  const handleRenameFile = (fileId: string) => {
-    // TODO: open a rename file dialog and call /file/rename
-    console.log("Rename file", fileId);
+  // Replace your existing handleRenameFile function with this version:
+  const handleRenameFile = async (fileId: string, newName: string) => {
+    const formData = new FormData();
+    formData.append("file_id", fileId);
+    formData.append("new_name", newName);
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/file/rename", {
+        method: "PATCH",
+        body: formData,
+      });
+      if (!res.ok) {
+        throw new Error(`Rename failed with status ${res.status}`);
+      }
+      const data = await res.json();
+      console.log("Rename response:", data);
+      
+      setFiles((prevFiles) =>
+        prevFiles.map((file) =>
+          file.id === fileId ? { ...file, filename: data.new_filename } : file
+        )
+      );
+    } catch (error) {
+      console.error("Error renaming file:", error);
+    }
   };
 
-  const handleDeleteFile = (fileId: string) => {
-    // TODO: call DELETE /file/{fileId} and update local state
-    console.log("Delete file", fileId);
-    setFiles((prev) => prev.filter((f) => f.id !== fileId));
+  const handleDeleteFile = async (fileId: string) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/file/delete/${fileId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error(`Delete failed with status ${res.status}`);
+      }
+      const data = await res.json();
+      console.log("Delete response:", data);
+      
+      // Remove the deleted file from the local state.
+      setFiles((prevFiles) => prevFiles.filter((file) => file.id !== fileId));
+    } catch (error) {
+      console.error("Error deleting file:", error);
+    }
   };
 
   // Handlers for chats
@@ -195,8 +229,9 @@ export default function Workspace({ workspaceData }: { workspaceData: WorkspaceT
               <div key={file.id} className="flex items-center justify-between p-2 border-b border-neutral-800">
                 <span className="truncate">{file.filename}</span>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => handleRenameFile(file.id)} className="cursor-pointer">
-                    <Edit className="h-4 w-4" />
+                  <RenameFilePopover file={file} onRename={handleRenameFile} />
+                  <Button variant="ghost" size="icon" onClick={() => handleDeleteFile(file.id)} className="cursor-pointer">
+                    <Trash className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => handleDeleteFile(file.id)} className="cursor-pointer">
                     <Trash className="h-4 w-4" />
@@ -387,5 +422,35 @@ export default function Workspace({ workspaceData }: { workspaceData: WorkspaceT
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function RenameFilePopover({ file, onRename }: { file: FileType; onRename: (fileId: string, newName: string) => Promise<void> }) {
+  const [newName, setNewName] = useState(file.filename);
+  const [open, setOpen] = useState(false);
+
+  const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      await onRename(file.id, newName);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="cursor-pointer">
+          <Edit className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-2 bg-neutral-950 border border-neutral-800">
+        <Input 
+          value={newName} 
+          onChange={(e) => setNewName(e.target.value)} 
+          onKeyDown={handleKeyDown}
+          autoFocus
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
