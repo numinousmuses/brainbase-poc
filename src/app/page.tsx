@@ -18,12 +18,14 @@ export default function Home() {
   // On mount, rehydrate from localStorage if available
   useEffect(() => {
     const rehydrateAuth = async () => {
-      const authResponse = localStorage.getItem("AuthResponse");
+      const authResponse = localStorage.getItem("authResponse");
 
       if (authResponse) {
         try {
           // Parse the stored email to remove extra quotes.
           const authObj = JSON.parse(authResponse);
+
+          // console.log("Rehydrating auth response:", authObj);
           const parsedEmail = authObj.email;
           const res = await fetch("http://127.0.0.1:8000/auth/login", {
             method: "POST",

@@ -18,12 +18,14 @@ interface WorkspaceComboboxProps {
   selectedWorkspace: WorkspaceType;
   onSelect: (ws: WorkspaceType) => void;
   onNewWorkspace: () => void;
+  allWorkspaces: WorkspaceType[]
 }
 
 export function WorkspaceCombobox({
   selectedWorkspace,
   onSelect,
   onNewWorkspace,
+  allWorkspaces
 }: WorkspaceComboboxProps) {
   // Dummy list – in a real scenario, these would come from your user data.
   const workspaces: WorkspaceType[] = [
@@ -34,7 +36,7 @@ export function WorkspaceCombobox({
       chats: [],
     },
     // ...other workspaces
-    selectedWorkspace,
+    ...allWorkspaces,
   ];
 
 //   console.log(selectedWorkspace)

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { WorkspaceCombobox } from "./workspaceCombobox";
 // Shadcn UI components
@@ -59,12 +59,15 @@ export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
   const router = useRouter();
 
   // Local state for dialogs and form inputs
+  // Initialize a local state with the initial workspaces.
+  const [workspaces, setWorkspaces] = useState<WorkspaceType[]>(workspaceData);
 
   const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceType>(defaultWorkspace);
   const [files, setFiles] = useState<FileType[]>(selectedWorkspace.files || []);
   const [chats, setChats] = useState<ChatType[]>(selectedWorkspace.chats || []);
   const [newWorkspaceOpen, setNewWorkspaceOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
+  const [newWorkspaceFiles, setNewWorkspaceFiles] = useState<File[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [newChatName, setNewChatName] = useState("");
   const [selectedFilesForChat, setSelectedFilesForChat] = useState<string[]>([]);
@@ -124,6 +127,11 @@ export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
     // Trigger the file dialog
     fileInput.click();
   };
+
+  useEffect(() => {
+    setFiles(selectedWorkspace.files || []);
+    setChats(selectedWorkspace.chats || []);
+  }, [selectedWorkspace]);
 
   // Replace your existing handleRenameFile function with this version:
   const handleRenameFile = async (fileId: string, newName: string) => {
@@ -221,10 +229,38 @@ export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
   };
 
   // Handlers for new workspace (dialog)
-  const handleCreateNewWorkspace = () => {
-    // TODO: call /workspace/new with newWorkspaceName and file uploads
-    console.log("Create new workspace:", newWorkspaceName);
-    setNewWorkspaceOpen(false);
+  const handleCreateNewWorkspace = async () => {
+    const formData = new FormData();
+    formData.append("owner_id", userId);
+    formData.append("name", newWorkspaceName);
+    
+    // Append each new workspace file.
+    newWorkspaceFiles.forEach((file) => {
+      formData.append("files", file);
+    });
+    
+    try {
+      const res = await fetch("http://127.0.0.1:8000/workspace/new", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        throw new Error(`Create workspace failed with status ${res.status}`);
+      }
+      const data = await res.json();
+      console.log("Create workspace response:", data);
+      
+      // Update local workspaces state; assuming data.workspace contains the new workspace info.
+      setWorkspaces((prev) => [...prev, data.workspace]);
+      // Optionally set the new workspace as selected.
+      setSelectedWorkspace(data.workspace);
+      
+      setNewWorkspaceOpen(false);
+      setNewWorkspaceName("");
+      setNewWorkspaceFiles([]);
+    } catch (error) {
+      console.error("Error creating workspace:", error);
+    }
   };
 
   // Handlers for new chat (dialog)
@@ -234,6 +270,11 @@ export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
     formData.append("user_id", userId);
     formData.append("workspace_id", selectedWorkspace.id);
     formData.append("chat_name", newChatName);
+    
+    // Append each selected file id as form field with the same name.
+    selectedFilesForChat.forEach((fileId) => {
+      formData.append("selected_file_ids", fileId);
+    });
     
     try {
       const res = await fetch("http://127.0.0.1:8000/chat/new", {
@@ -257,15 +298,30 @@ export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
       ]);
       setNewChatOpen(false);
       setNewChatName("");
+      setSelectedFilesForChat([]); // Clear selected files after creation
     } catch (error) {
       console.error("Error creating chat:", error);
     }
   };
+  
 
   // Handlers for settings dialog (listing models, adding a model, deleting workspace)
-  const handleDeleteWorkspace = () => {
-    // TODO: call DELETE /workspace/delete/{workspaceId}
-    console.log("Delete workspace", selectedWorkspace.id);
+  const handleDeleteWorkspace = async () => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/workspace/delete/${selectedWorkspace.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error(`Delete workspace failed with status ${res.status}`);
+      }
+      const data = await res.json();
+      console.log("Delete workspace response:", data);
+      
+      // Remove the deleted workspace from state.
+      setWorkspaces((prev) => prev.filter((ws) => ws.id !== selectedWorkspace.id));
+    } catch (error) {
+      console.error("Error deleting workspace:", error);
+    }
   };
 
   return (
@@ -278,6 +334,7 @@ export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
             selectedWorkspace={selectedWorkspace}
             onSelect={(ws) => setSelectedWorkspace(ws)}
             onNewWorkspace={() => setNewWorkspaceOpen(true)}
+            allWorkspaces={workspaces}
           />
         </div>
 
