@@ -1,0 +1,231 @@
+"use client";
+
+import * as React from "react";
+import { useState, useEffect, DragEvent } from "react";
+import { useRouter } from "next/navigation";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import { History, MessageSquare, Upload } from "lucide-react";
+
+export default function ChatPage() {
+  const router = useRouter();
+
+  // State for the code viewer (left panel)
+  const [selectedBasedFileContent, setSelectedBasedFileContent] = useState<string>("print('Hello from default based file')");
+  
+  // Breadcrumbs
+  const [breadcrumbWorkspace, setBreadcrumbWorkspace] = useState("My Workspace");
+  const [breadcrumbChat, setBreadcrumbChat] = useState("General Chat");
+
+  // View mode for right panel: either chat history or diff explorer
+  const [viewMode, setViewMode] = useState<"chat" | "diff">("chat");
+
+  // Placeholder state for models; in a real app, you'd load these via API or WebSocket
+  const [models, setModels] = useState<string[]>(["Model A", "Model B", "Model C"]);
+  const [selectedModel, setSelectedModel] = useState<string>("Model A");
+
+  // Placeholder file explorer lists
+  const [basedFiles, setBasedFiles] = useState<{ id: string; name: string; content: string }[]>([
+    { id: "based-1", name: "script.based", content: "print('Based file 1 content')" },
+    { id: "based-2", name: "analysis.based", content: "print('Based file 2 content')" },
+  ]);
+  const [contextFiles, setContextFiles] = useState<{ id: string; name: string }[]>([
+    { id: "ctx-1", name: "notes.txt" },
+    { id: "ctx-2", name: "reference.pdf" },
+  ]);
+
+  // Chat history placeholder
+  const [chatHistory, setChatHistory] = useState([
+    { role: "user", content: "Hello, how do I use this tool?" },
+    { role: "assistant", content: "You can click on the based file to see its content." },
+  ]);
+
+  // Version diff placeholder state for diff explorer
+  const [versionDiff, setVersionDiff] = useState<string>("Diff output placeholder...");
+
+  // Prompt text
+  const [promptText, setPromptText] = useState<string>("");
+
+  // Handle drag and drop over the entire page (placeholder)
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    // You could extract e.dataTransfer.files and call your upload function.
+    console.log("File(s) dropped", e.dataTransfer.files);
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  // When a based file is clicked, update the left panel's code content.
+  const handleBasedFileSelect = (fileContent: string) => {
+    setSelectedBasedFileContent(fileContent);
+  };
+
+  return (
+    <div 
+      className="h-screen"
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+    >
+      <ResizablePanelGroup direction="horizontal" className="h-full w-screen">
+        {/* Left Panel: Code Viewer */}
+        <ResizablePanel className="p-4 w-1/3">
+          <div className="language-python bg-neutral-950">
+            <code>{selectedBasedFileContent}</code>
+          </div>
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        
+        {/* Right Section: Contains header with breadcrumb and right panels */}
+        
+        <ResizablePanel className="flex flex-col w-2/3">
+          {/* Header / Breadcrumb */}
+          <div className="border-b p-2 flex items-center justify-between">
+            <Breadcrumb>
+                <BreadcrumbList>
+                    <BreadcrumbItem>
+                        <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                        <BreadcrumbLink href="/">{breadcrumbWorkspace}</BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                        <BreadcrumbPage>{breadcrumbChat}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                </BreadcrumbList>
+            </Breadcrumb>
+            <Button onClick={() => setViewMode(viewMode === "chat" ? "diff" : "chat")} className="bg-neutral-950 hover:bg-neutral-800 text-white cursor-pointer">
+               {viewMode === "chat" ? <History /> : <MessageSquare />}
+            </Button>
+          </div>
+          {/* Container for middle and right panels */}
+          <ResizablePanelGroup direction="horizontal" className="flex flex-1 overflow-hidden">
+            {/* Middle Panel: File Explorer and Model Combobox */}
+            <ResizablePanel className="w-1/3 border-r flex flex-col">
+              {/* Model Combobox */}
+              <div className="">
+                <Select
+                  value={selectedModel}
+                  onValueChange={setSelectedModel}
+                >
+                    <SelectTrigger className="w-full p-6 rounded-none bg-neutral-950 text-white border-0 border-b-1 cursor-pointer mb-1">
+                        <SelectValue placeholder="Model" />
+                    </SelectTrigger>
+                  
+                  <SelectContent>
+                    {models.map((model, idx) => (
+                        <SelectItem 
+                            className=" cursor-pointer outline-0"
+                            key={idx} value={model}>{model}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* File Explorer */}
+              <div className="p-2 flex-1 overflow-auto">
+                <div className="flex justify-between align-center"> 
+                    <h2 className="text-sm text-neutral-400 mb-2">FILES </h2>
+                    <Button variant="ghost" className="cursor-pointer">
+                        <Upload />
+                    </Button>
+                </div>
+                <h2 className="text-xs text-neutral-400 mt-4 mb-2">BASED</h2>
+                {basedFiles.map((file) => (
+                  <div 
+                    key={file.id} 
+                    className="p-2  rounded mb-1 cursor-pointer hover:bg-neutral-800"
+                    onClick={() => handleBasedFileSelect(file.content)}
+                  >
+                    {file.name}
+                  </div>
+                ))}
+                <h2 className="text-xs text-neutral-400 mt-4 mb-2">CONTEXT</h2>
+                {contextFiles.map((file) => (
+                  <div key={file.id} className="p-2 text-base rounded mb-1 cursor-pointer hover:bg-neutral-800">
+                    {file.name}
+                  </div>
+                ))}
+                <div className="mt-4">
+                  
+                </div>
+              </div>
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            {/* Right Panel: Chat / Diff Explorer */}
+            <ResizablePanel className="flex-1 flex flex-col">
+              {/* Content area for chat history or diff explorer */}
+              <div className="flex-1 p-2 overflow-auto">
+                {viewMode === "chat" ? (
+                  <div>
+                    {chatHistory.map((msg, idx) => (
+                      <div key={idx} className={`mb-2 p-2 rounded ${msg.role === "user" ? "bg-blue-800" : "bg-green-800"}`}>
+                        <strong>{msg.role}:</strong> {msg.content}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div>
+                    {/* Display diff explorer */}
+                    <div className="mb-2">Versions</div>
+                    <div className="border p-2">
+                      <pre className="language-python">
+                        <code>{selectedBasedFileContent}</code>
+                      </pre>
+                      <div className="bg-red-500 p-2 text-white mt-2">
+                        {versionDiff}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* Footer: Prompt Box */}
+              <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 w-full max-w-2xl border p-5 bg-neutral-950">
+                <Textarea
+                  placeholder="Enter message..."
+                  className="w-full p-2 border rounded mb-5  text-white"
+                  rows={3}
+                  value={promptText}
+                  onChange={(e) => setPromptText(e.target.value)}
+                />
+                <div className="flex items-center justify-between">
+                  <div>
+                    {/* Placeholder for chat/composer switch */}
+                    <span>Switch (chat/composer)</span>
+                  </div>
+                  <div>
+                    {/* Placeholder for help icon */}
+                    <Button variant="ghost">Help</Button>
+                  </div>
+                  <div>
+                    <Button>Send</Button>
+                  </div>
+                </div>
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
+  );
+}

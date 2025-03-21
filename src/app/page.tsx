@@ -25,7 +25,7 @@ export default function Home() {
           // Parse the stored email to remove extra quotes.
           const authObj = JSON.parse(authResponse);
 
-          // console.log("Rehydrating auth response:", authObj);
+          console.log("Rehydrating auth response:", authObj);
           const parsedEmail = authObj.email;
           const res = await fetch("http://127.0.0.1:8000/auth/login", {
             method: "POST",
@@ -81,10 +81,12 @@ export default function Home() {
     }
   };
 
+  const fetchedModels = workspaceData ? workspaceData.models : [];
+
   return (
     <>
       {workspaceData ? (
-        <Workspace workspaceData={workspaceData.workspaces} userId={workspaceData.user_id} />
+        <Workspace workspaceData={workspaceData.workspaces} userId={workspaceData.user_id} fetchedModels={fetchedModels} />
       ) : (
         <div className="dark min-h-screen flex items-center justify-center bg-gradient-to-b from-neutral-900 via-neutral-950 to-black text-neutral-100">
           <Card className="w-full max-w-md mx-auto bg-neutral-950 rounded-none">

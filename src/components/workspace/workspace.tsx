@@ -50,9 +50,10 @@ interface WorkspaceType {
 export interface WorkspaceProps {
   workspaceData: WorkspaceType[];
   userId: string;
+  fetchedModels: ModelType[];
 }
 
-export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
+export default function Workspace({ workspaceData, userId, fetchedModels }: WorkspaceProps) {
 
   // select the first workspace in the array as the default
   const defaultWorkspace = workspaceData[0];
@@ -73,7 +74,7 @@ export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
   const [newChatName, setNewChatName] = useState("");
   const [selectedFilesForChat, setSelectedFilesForChat] = useState<string[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [models, setModels] = useState<ModelType[]>([]);
+  const [models, setModels] = useState<ModelType[]>(fetchedModels || []);
   const [newModelName, setNewModelName] = useState("");
   const [newModelAk, setNewModelAk] = useState("");
   const [newModelBaseUrl, setNewModelBaseUrl] = useState("");
@@ -409,9 +410,6 @@ export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
                   <Button variant="ghost" size="icon" onClick={() => handleDeleteFile(file.id)} className="cursor-pointer">
                     <Trash className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDeleteFile(file.id)} className="cursor-pointer">
-                    <Trash className="h-4 w-4" />
-                  </Button>
                 </div>
               </div>
             ))
@@ -467,7 +465,7 @@ export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
         {/* Chats List */}
         <div className="flex flex-wrap gap-4 overflow-auto mt-2 p-5">
           {chats.map((chat) => (
-            <Card key={chat.id} className="bg-neutral-950 border border-neutral-800 w-1/3 rounded-none">
+            <Card key={chat.id} className="bg-neutral-950 border border-neutral-800 flex-1 rounded-none min-w-60">
               <CardHeader className="flex items-center justify-between">
                 <div>
                   <CardTitle>{chat.name}</CardTitle>
@@ -539,7 +537,7 @@ export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
               onChange={(e) => setNewChatName(e.target.value)}
               placeholder="Enter chat name"
             />
-            {/* TODO: Render a checkbox list of workspace files for selection */}
+
             <div className="mt-2">
               <p className="text-sm text-neutral-400 mb-1">Select files to include in chat:</p>
               {files.map((file) => (
