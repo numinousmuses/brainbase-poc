@@ -37,6 +37,8 @@ export function WorkspaceCombobox({
     selectedWorkspace,
   ];
 
+//   console.log(selectedWorkspace)
+
   const [open, setOpen] = useState(false);
 
   return (
@@ -49,23 +51,23 @@ export function WorkspaceCombobox({
       </PopoverTrigger>
       <PopoverContent className="w-full p-0 bg-neutral-950 border border-neutral-800 rounded-none">
         <div className="flex flex-col">
-          {workspaces.map((ws) => (
-            <Button
-              key={ws.id}
-              variant="ghost"
-              className="justify-start rounded-none w-full cursor-pointer"
-              onClick={() => {
-                setOpen(false);
-                if (ws.id === "new") {
-                  onNewWorkspace();
-                } else {
-                  onSelect(ws);
-                }
-              }}
-            >
-              {ws.name}
-            </Button>
-          ))}
+            {workspaces.map((ws, index) => (
+                <Button
+                    key={`${ws.id}-${index}`}
+                    variant="ghost"
+                    className="justify-start rounded-none w-full cursor-pointer"
+                    onClick={() => {
+                    setOpen(false);
+                    if (ws.id === "new") {
+                        onNewWorkspace();
+                    } else {
+                        onSelect(ws);
+                    }
+                    }}
+                >
+                    {ws.name}
+                </Button>
+            ))}
         </div>
       </PopoverContent>
     </Popover>

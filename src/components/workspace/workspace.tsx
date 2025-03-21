@@ -46,13 +46,18 @@ interface WorkspaceType {
   chats: ChatType[];
 }
 
-export default function Workspace({ workspaceData }: { workspaceData: WorkspaceType }) {
+export default function Workspace({ workspaceData }: { workspaceData: WorkspaceType[] }) {
+
+  // select the first workspace in the array as the default
+  const defaultWorkspace = workspaceData[0];
+
   const router = useRouter();
 
   // Local state for dialogs and form inputs
-  const [files, setFiles] = useState<FileType[]>(workspaceData.files || []);
-  const [chats, setChats] = useState<ChatType[]>(workspaceData.chats || []);
-  const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceType>(workspaceData);
+
+  const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceType>(defaultWorkspace);
+  const [files, setFiles] = useState<FileType[]>(selectedWorkspace.files || []);
+  const [chats, setChats] = useState<ChatType[]>(selectedWorkspace.chats || []);
   const [newWorkspaceOpen, setNewWorkspaceOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [newChatOpen, setNewChatOpen] = useState(false);
@@ -61,9 +66,58 @@ export default function Workspace({ workspaceData }: { workspaceData: WorkspaceT
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Handlers for files
-  const handleUploadWorkspaceFile = () => {
-    // TODO: open file dialog and POST to /file/upload (only txt/pdf allowed)
-    console.log("Upload file to workspace", selectedWorkspace.id);
+  const handleUploadWorkspaceFile = async () => {
+    // Create a hidden file input element.
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".pdf,.txt";
+    fileInput.multiple = true;
+    
+    // When files are selected...
+    fileInput.onchange = async () => {
+      const selectedFiles = fileInput.files;
+      if (selectedFiles && selectedFiles.length > 0) {
+        // Build FormData with target_id, is_chat, and files.
+        const formData = new FormData();
+        formData.append("target_id", selectedWorkspace.id);
+        formData.append("is_chat", "false"); // Uploading to workspace only
+        
+        // Append each selected file to the FormData
+        for (let i = 0; i < selectedFiles.length; i++) {
+          formData.append("files", selectedFiles[i]);
+        }
+        
+        try {
+          const res = await fetch("http://127.0.0.1:8000/file/upload", {
+            method: "POST",
+            body: formData,
+          });
+          if (!res.ok) {
+            throw new Error(`Upload failed with status ${res.status}`);
+          }
+          const data = await res.json();
+          console.log("Upload response:", data);
+          
+          // data.files is expected to be an array of new file IDs.
+          // We know the file names from the FileList.
+          const newFiles: FileType[] = [];
+          for (let i = 0; i < selectedFiles.length; i++) {
+            newFiles.push({
+              id: data.files[i],
+              filename: selectedFiles[i].name,
+            });
+          }
+          
+          // Update local state: append the new files to the existing files.
+          setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+        } catch (error) {
+          console.error("Error uploading file:", error);
+        }
+      }
+    };
+    
+    // Trigger the file dialog
+    fileInput.click();
   };
 
   const handleRenameFile = (fileId: string) => {
