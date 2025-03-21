@@ -17,10 +17,36 @@ export default function Home() {
 
   // On mount, rehydrate from localStorage if available
   useEffect(() => {
-    const storedAuth = localStorage.getItem("authResponse");
-    if (storedAuth) {
-      setWorkspaceData(JSON.parse(storedAuth));
-    }
+    const rehydrateAuth = async () => {
+      const authEmail = localStorage.getItem("authEmail");
+      console.log(JSON.stringify({ email: authEmail }));
+      if (authEmail) {
+        try {
+          // Parse the stored email to remove extra quotes.
+          const parsedEmail = JSON.parse(authEmail);
+          const res = await fetch("http://127.0.0.1:8000/auth/login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email: parsedEmail }),
+          });
+  
+          if (!res.ok) {
+            throw new Error(`Login request failed: ${res.status}`);
+          }
+  
+          const data = await res.json();
+          console.log("Login response:", data);
+          setWorkspaceData(data);
+        } catch (error) {
+          console.error(error);
+          // TODO: show error to user
+        }
+      }
+    };
+  
+    rehydrateAuth();
   }, []);
 
   // Simple handler to POST to /auth/login
@@ -44,7 +70,7 @@ export default function Home() {
       console.log("Login response:", data);
       
       // Save the auth response in localStorage
-      localStorage.setItem("authResponse", JSON.stringify(data));
+      localStorage.setItem("authEmail", JSON.stringify(data.email));
       setWorkspaceData(data);
     } catch (error) {
       console.error(error);
