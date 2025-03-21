@@ -46,7 +46,12 @@ interface WorkspaceType {
   chats: ChatType[];
 }
 
-export default function Workspace({ workspaceData }: { workspaceData: WorkspaceType[] }) {
+export interface WorkspaceProps {
+  workspaceData: WorkspaceType[];
+  userId: string;
+}
+
+export default function Workspace({ workspaceData, userId }: WorkspaceProps) {
 
   // select the first workspace in the array as the default
   const defaultWorkspace = workspaceData[0];
@@ -166,15 +171,49 @@ export default function Workspace({ workspaceData }: { workspaceData: WorkspaceT
   };
 
   // Handlers for chats
-  const handleRenameChat = (chatId: string) => {
-    // TODO: open a rename chat dialog and call PATCH /chat/rename
-    console.log("Rename chat", chatId);
+  const handleRenameChat = async (chatId: string, newName: string) => {
+    const formData = new FormData();
+    formData.append("chat_id", chatId);
+    formData.append("new_name", newName);
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/chat/rename", {
+        method: "PATCH",
+        body: formData,
+      });
+      if (!res.ok) {
+        throw new Error(`Rename chat failed with status ${res.status}`);
+      }
+      const data = await res.json();
+      console.log("Rename chat response:", data);
+      
+      setChats((prevChats) =>
+        prevChats.map((chat) =>
+          chat.id === chatId
+            ? { ...chat, name: data.name, last_updated: data.last_updated }
+            : chat
+        )
+      );
+    } catch (error) {
+      console.error("Error renaming chat:", error);
+    }
   };
 
-  const handleDeleteChat = (chatId: string) => {
-    // TODO: call DELETE /chat/{chatId} and update local state
-    console.log("Delete chat", chatId);
-    setChats((prev) => prev.filter((c) => c.id !== chatId));
+  const handleDeleteChat = async (chatId: string) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/chat/${chatId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error(`Delete chat failed with status ${res.status}`);
+      }
+      const data = await res.json();
+      console.log("Delete chat response:", data);
+      
+      setChats((prevChats) => prevChats.filter((chat) => chat.id !== chatId));
+    } catch (error) {
+      console.error("Error deleting chat:", error);
+    }
   };
 
   const handleOpenChat = (chatId: string) => {
@@ -189,10 +228,38 @@ export default function Workspace({ workspaceData }: { workspaceData: WorkspaceT
   };
 
   // Handlers for new chat (dialog)
-  const handleCreateNewChat = () => {
-    // TODO: call /chat/new with newChatName and selectedFilesForChat
-    console.log("Create new chat:", newChatName, "with files", selectedFilesForChat);
-    setNewChatOpen(false);
+  const handleCreateNewChat = async () => {
+    
+    const formData = new FormData();
+    formData.append("user_id", userId);
+    formData.append("workspace_id", selectedWorkspace.id);
+    formData.append("chat_name", newChatName);
+    
+    try {
+      const res = await fetch("http://127.0.0.1:8000/chat/new", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        throw new Error(`Create chat failed with status ${res.status}`);
+      }
+      const data = await res.json();
+      console.log("Create chat response:", data);
+      
+      // Append the new chat to the chats state.
+      setChats((prevChats) => [
+        ...prevChats,
+        {
+          id: data.chat_id,
+          name: data.name,
+          last_updated: data.last_updated,
+        },
+      ]);
+      setNewChatOpen(false);
+      setNewChatName("");
+    } catch (error) {
+      console.error("Error creating chat:", error);
+    }
   };
 
   // Handlers for settings dialog (listing models, adding a model, deleting workspace)
@@ -291,7 +358,7 @@ export default function Workspace({ workspaceData }: { workspaceData: WorkspaceT
         {/* Chats List */}
         <div className="flex flex-wrap gap-4 overflow-auto mt-2 p-5">
           {chats.map((chat) => (
-            <Card key={chat.id} className="bg-neutral-950 border border-neutral-800 w-1/4 rounded-none">
+            <Card key={chat.id} className="bg-neutral-950 border border-neutral-800 w-1/3 rounded-none">
               <CardHeader className="flex items-center justify-between">
                 <div>
                   <CardTitle>{chat.name}</CardTitle>
@@ -299,9 +366,10 @@ export default function Workspace({ workspaceData }: { workspaceData: WorkspaceT
                     {new Date(chat.last_updated).toLocaleString()}
                   </CardDescription>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => handleRenameChat(chat.id)} className="cursor-pointer">
+                <RenameChatPopover chat={chat} onRename={handleRenameChat} />
+                {/* <Button variant="ghost" size="icon" onClick={() => handleRenameChat(chat.id)} className="cursor-pointer">
                   <Edit className="h-4 w-4" />
-                </Button>
+                </Button> */}
               </CardHeader>
               <CardFooter className="flex justify-between">
                 <Button variant="destructive" onClick={() => handleDeleteChat(chat.id)} className="cursor-pointer">
@@ -447,6 +515,36 @@ function RenameFilePopover({ file, onRename }: { file: FileType; onRename: (file
         <Input 
           value={newName} 
           onChange={(e) => setNewName(e.target.value)} 
+          onKeyDown={handleKeyDown}
+          autoFocus
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function RenameChatPopover({ chat, onRename }: { chat: ChatType; onRename: (chatId: string, newName: string) => Promise<void>; }) {
+  const [newName, setNewName] = useState(chat.name);
+  const [open, setOpen] = useState(false);
+
+  const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      await onRename(chat.id, newName);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="cursor-pointer">
+          <Edit className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-2 bg-neutral-950 border border-neutral-800">
+        <Input 
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
           onKeyDown={handleKeyDown}
           autoFocus
         />

@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import Workspace from "@/components/workspace/workspace";
+import Workspace, { WorkspaceProps } from "@/components/workspace/workspace";
 import { AuthResponse } from "@/lib/interfaces";
 
 export default function Home() {
@@ -18,12 +18,13 @@ export default function Home() {
   // On mount, rehydrate from localStorage if available
   useEffect(() => {
     const rehydrateAuth = async () => {
-      const authEmail = localStorage.getItem("authEmail");
-      console.log(JSON.stringify({ email: authEmail }));
-      if (authEmail) {
+      const authResponse = localStorage.getItem("AuthResponse");
+
+      if (authResponse) {
         try {
           // Parse the stored email to remove extra quotes.
-          const parsedEmail = JSON.parse(authEmail);
+          const authObj = JSON.parse(authResponse);
+          const parsedEmail = authObj.email;
           const res = await fetch("http://127.0.0.1:8000/auth/login", {
             method: "POST",
             headers: {
@@ -70,7 +71,7 @@ export default function Home() {
       console.log("Login response:", data);
       
       // Save the auth response in localStorage
-      localStorage.setItem("authEmail", JSON.stringify(data.email));
+      localStorage.setItem("authResponse", JSON.stringify(data));
       setWorkspaceData(data);
     } catch (error) {
       console.error(error);
@@ -81,7 +82,7 @@ export default function Home() {
   return (
     <>
       {workspaceData ? (
-        <Workspace workspaceData={workspaceData.workspaces} />
+        <Workspace workspaceData={workspaceData.workspaces} userId={workspaceData.user_id} />
       ) : (
         <div className="dark min-h-screen flex items-center justify-center bg-gradient-to-b from-neutral-900 via-neutral-950 to-black text-neutral-100">
           <Card className="w-full max-w-md mx-auto bg-neutral-950 rounded-none">
