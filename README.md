@@ -20,17 +20,15 @@
 
 **Pages & Key Components:**
 
-- **Login (/login):**
-  - Acts as both login and signup.
+- **Root (/):**
+  - Acts as both login and workspace.
   - Users enter their email; a UUID is generated and stored on the backend.
-
-- **Dashboard (/dashboard):**
   - Lists all workspaces.
   - Options to:
     - Create new workspaces (with an optional file upload)
     - Rename and delete workspaces
 
-- **Workspace (/workspace/{workspaceID}):**
+- **Workspace:**
   - Displays a list of chats within the workspace.
   - Features:
     - Chat list with title, last edited time, and action buttons (open, chat, rename, delete).
@@ -42,17 +40,10 @@
   - Main chat interface including:
     - A canvas for agent-based code.
     - File management: view chat files and add workspace files to the chat context.
-    - Buttons/links to interact with the agent.
-    - Option to select integrations.
     - Agent version history with diff comparisons.
-    - Minimalist mode option.
-  
-- **Agent (/agent/{agentID}):**
-  - Dedicated interface to interact directly with a specific agent.
 
-- **Settings (/settings):**
+- **Settings:**
   - Input model API keys (with a fallback to an open router key).
-  - Set maximum iterations for agent interactions.
 
 **UI Elements:**
 - Workspace Section
@@ -72,6 +63,7 @@
 **Core Functions & Endpoints:**
 
 - **Authentication:**
+  - Very basic auth for development purposes.
   - Email-based login.
   - Checks for existing email; if new, generates and returns a UUID as a session token.
 
@@ -134,10 +126,6 @@
 - **Agent Version Management:**
   - Track version history.
   - Allow users to revert to previous agent versions.
-
-- **Tool Integration:**
-  - Provide a full list of available tools to the agent.
-  - Consider future enhancements to prescreen for necessary integrations to reduce prompt clutter.
 
 ---
 
