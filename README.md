@@ -148,4 +148,5 @@
 - **File Viewing Capabilities**
 - **Agent Testing**
 - **UI/UX and Responsiveness Improvements**
-
+- **Better memory handling**
+- **Choose any version to compare diffs**
