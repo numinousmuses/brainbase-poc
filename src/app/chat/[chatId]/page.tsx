@@ -23,9 +23,9 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { History, MessageSquare, Upload, CircleHelp, Send } from "lucide-react";
+import { History, MessageSquare, Upload, CircleHelp, Send, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { ChatFileBased, ChatFileText } from "@/lib/interfaces";
+import { ChatFileBased, ChatFileText, ChatMessage } from "@/lib/interfaces";
 
 
 interface ChatHistoryItem {
@@ -40,10 +40,13 @@ import { highlight, languages } from 'prismjs/components/prism-core';
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/themes/prism.css'; 
+import VersionDiffExplorer from "@/components/versionDiffExplorer/versionDIffExplorer";
+import { send } from "process";
 
 export default function ChatPage() {
   const router = useRouter();
   const { chatId } = useParams();
+  const [isSending, setIsSending] = useState(false);
 
   // State for the code viewer (left panel)
   const [selectedBasedFileContent, setSelectedBasedFileContent] = useState<string>("");
@@ -93,7 +96,7 @@ export default function ChatPage() {
   // When a based file is clicked, update the left panel's code content and record the file name.
   const handleBasedFileSelect = (fileName: string, fileContent: string) => {
     setSelectedBasedFileName(fileName);
-    setSelectedBasedFileContent(JSON.parse(fileContent).text);
+    setSelectedBasedFileContent(fileContent);
   };
 
   // Establish WebSocket connection on load and update the UI based on messages
@@ -108,44 +111,117 @@ export default function ChatPage() {
     };
 
     ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-
-        console.log("Received WebSocket message:", data);
-
-        if (data.chat_name){
-          setBreadcrumbChat(data.chat_name);
+        try {
+          // For text messages
+          if (typeof event.data === 'string' && !event.data.startsWith('{')) {
+            // Direct text response (for "response" type)
+            setChatHistory(prev => [
+              ...prev, 
+              { role: 'assistant', content: event.data, type: 'text' } as ChatMessage
+            ]);
+            return;
+          }
+      
+          const data = JSON.parse(event.data);
+          console.log("Received WebSocket message:", data);
+      
+          if (data.chat_name) {
+            setBreadcrumbChat(data.chat_name);
+          }
+      
+          // Handle structured responses
+          if (data.action === "agent_response") {
+            setIsSending(false);
+            const responseData = data.message;
+            
+            // Handle file responses (based or diff types)
+            if (responseData.type === "file") {
+              const fileContent = typeof responseData.content === 'string' 
+                ? JSON.parse(responseData.content) 
+                : responseData.content;
+      
+              // Update chat history
+              setChatHistory(prev => [
+                ...prev,
+                {
+                  role: responseData.role,
+                  content: typeof fileContent === 'string' 
+                    ? fileContent 
+                    : JSON.stringify(fileContent),
+                  type: 'file'
+                } as ChatMessage
+              ]);
+      
+              // Update the based files list if it's a new file or modified file
+              if (fileContent.based_filename && fileContent.based_content) {
+                setBasedFiles(prevFiles => {
+                  // Check if the file already exists in our list
+                  const existingFileIndex = prevFiles.findIndex(
+                    file => file.name === fileContent.based_filename
+                  );
+      
+                  if (existingFileIndex >= 0) {
+                    // Update existing file
+                    const updatedFiles = [...prevFiles];
+                    updatedFiles[existingFileIndex] = {
+                      ...updatedFiles[existingFileIndex],
+                      latest_content: fileContent.based_content
+                    };
+                    return updatedFiles;
+                  } else {
+                    // Add new file with all required fields
+                    return [...prevFiles, {
+                      file_id: `temp-${Date.now()}`,
+                      name: fileContent.based_filename,
+                      latest_content: fileContent.based_content,
+                      versions: [], 
+                      type: "based"
+                    } as ChatFileBased];
+                  }
+                });
+      
+                // Update the editor if this is the currently selected file or a new file
+                if (!selectedBasedFileName || selectedBasedFileName === fileContent.based_filename) {
+                  setSelectedBasedFileName(fileContent.based_filename);
+                  setSelectedBasedFileContent(fileContent.based_content);
+                }
+              }
+            }
+          }
+          
+          // Handle existing data format for conversation, models, files
+          if (data.conversation) {
+            setChatHistory(data.conversation);
+          }
+          if (data.models) {
+            setModels(data.models);
+          }
+          if (data.chat_files_based) {
+            setBasedFiles(data.chat_files_based);
+            if (data.chat_files_based.length > 0 && !selectedBasedFileName) {
+              handleBasedFileSelect(
+                data.chat_files_based[0].name, 
+                data.chat_files_based[0].latest_content
+              );
+            }
+          }
+          if (data.chat_files_text) {
+            setContextFiles(data.chat_files_text);
+          }
+        } catch (err) {
+          console.error("Error parsing WebSocket message", err);
+          
+          // If parsing fails, it might be a plain text message
+          if (typeof event.data === 'string') {
+            setChatHistory(prev => [
+              ...prev, 
+              { role: 'assistant', content: event.data, type: 'text' } as ChatMessage
+            ]);
+          }
         }
-        // Update chat history if payload contains conversation array
-        if (data.conversation) {
-          setChatHistory(data.conversation);
-        }
-        // Update models if payload contains models
-        if (data.models) {
-          setModels(data.models);
-        }
-        // Update based files if payload contains chat_files_based
-        if (data.chat_files_based) {
-          const updatedBasedFiles = data.chat_files_based.map((item: any) => ({
-            file_id: item.file_id,
-            name: item.name,
-            latest_content: item.latest_content,
-          }));
-          setBasedFiles(updatedBasedFiles);
-          handleBasedFileSelect(updatedBasedFiles[0].name, updatedBasedFiles[0].latest_content);
-        }
-        // Update context files if payload contains chat_files_text
-        if (data.chat_files_text) {
-          const updatedContextFiles = data.chat_files_text.map((item: any) => ({
-            file_id: item.file_id,
-            name: item.name,
-          }));
-          setContextFiles(updatedContextFiles);
-        }
-      } catch (err) {
-        console.error("Error parsing WebSocket message", err);
-      }
-    };
+      };
+      
+      
 
     ws.onclose = () => {
       console.log("WebSocket connection closed");
@@ -162,14 +238,30 @@ export default function ChatPage() {
       console.error("WebSocket is not connected.");
       return;
     }
+    setIsSending(true);
+
+    // Add user message to chat history immediately for better UX
+    setChatHistory(prev => [
+        ...prev,
+        {
+        role: "user",
+        content: promptText,
+        type: "text"
+        } as ChatMessage // Type assertion to ensure compatibility
+    ]);
+  
+
+
     const messageData = {
-      action: "new_message",
-      prompt: promptText,
-      model: selectedModel,
-      is_first_prompt: basedFiles.length === 0 || chatHistory.length === 0,
-      is_chat_or_composer: !isChatOrComposer,
-      selected_filename: selectedBasedFileName
-    };
+        action: "new_message",
+        prompt: promptText,
+        model: selectedModel,
+        is_first_prompt: basedFiles.length === 0 || chatHistory.length === 0,
+        is_chat_or_composer: !isChatOrComposer,
+        selected_filename: selectedBasedFileName,
+        chat_files_based: basedFiles, // <-- add this line
+        chat_files_text: contextFiles  // (optional, if needed)
+    };      
     wsRef.current.send(JSON.stringify(messageData));
     setPromptText("");
   };
@@ -285,24 +377,57 @@ export default function ChatPage() {
                 {viewMode === "chat" ? (
                   <div>
                     {chatHistory.map((msg, idx) => (
-                      <div key={idx} className={`mb-2 p-2 rounded ${msg.role === "user" ? "bg-neutral-800" : "bg-neutral-950"}`}>
-                        {msg.content}
-                      </div>
+                        <div key={idx} className={`mb-2 p-2 rounded ${msg.role === "user" ? "bg-neutral-800" : "bg-neutral-950"}`}>
+                            {msg.type === 'file' ? (
+                            <div>
+                                <div className="font-medium mb-1">
+                                {msg.role === 'user' ? 'You' : 'Assistant'} 
+                                {' '} shared a file
+                                </div>
+                                {typeof msg.content === 'string' && msg.content.includes('based_filename') ? (
+                                (() => {
+                                    try {
+                                    const fileData = JSON.parse(msg.content) as {based_filename: string, based_content: string};
+                                    return (
+                                        <div>
+                                        <div className="text-sm text-blue-400 underline cursor-pointer" 
+                                            onClick={() => handleBasedFileSelect(fileData.based_filename, fileData.based_content)}>
+                                            {fileData.based_filename}
+                                        </div>
+                                        {fileData.based_content && fileData.based_content.length < 500 && (
+                                            <pre className="mt-2 bg-black rounded p-2 text-xs overflow-x-auto">
+                                            {fileData.based_content}
+                                            </pre>
+                                        )}
+                                        </div>
+                                    );
+                                    } catch (e) {
+                                    return <div>{msg.content}</div>;
+                                    }
+                                })()
+                                ) : (
+                                <div>{msg.content}</div>
+                                )}
+                            </div>
+                            ) : (
+                            <div>
+                                <div className="font-medium mb-1">
+                                {/* {msg.role === 'user' ? 'You' : 'Assistant'} */}
+                                </div>
+                                <div className="whitespace-pre-wrap">{msg.content}</div>
+                            </div>
+                            )}
+                        </div>
                     ))}
+
+
                   </div>
                 ) : (
-                  <div>
-                    {/* Display diff explorer */}
-                    <div className="mb-2">Versions</div>
-                    <div className="border p-2">
-                      <pre className="language-python">
-                        <code>{selectedBasedFileContent}</code>
-                      </pre>
-                      <div className="bg-red-500 p-2 text-white mt-2">
-                        {versionDiff}
-                      </div>
-                    </div>
-                  </div>
+                    <VersionDiffExplorer 
+                        basedFiles={basedFiles}
+                        selectedBasedFileName={selectedBasedFileName}
+                        selectedBasedFileContent={selectedBasedFileContent}
+                    />
                 )}
               </div>
               {/* Footer: Prompt Box */}
@@ -330,9 +455,17 @@ export default function ChatPage() {
                   </div>
                   
                   <div>
-                    <Button onClick={handleSend} className="cursor-pointer">
-                        <Send />
-                    </Button>
+                    {isSending ? (
+                        <Button disabled>
+                            <Loader2 className="animate-spin" />
+                            <Send />
+                        </Button>
+                    ) : (
+                        <Button onClick={handleSend} className="cursor-pointer">
+                            <Send />
+                        </Button>
+                    )}
+                    
                   </div>
                 </div>
               </div>
