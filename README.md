@@ -1,11 +1,19 @@
 # Brainbase Kafka POC
 
+## [Demo Video](https://youtu.be/to9kwjJGY74)
+
+![Screenshot](https://i.postimg.cc/0jyXs7Rs/Screenshot-2025-03-22-at-6-18-48-AM.png)
+
+![Screenshot](https://i.postimg.cc/1z4psM4M/Screenshot-2025-03-22-at-6-21-18-AM.png)
+
 ---
 
 ## Approach
 
 1. **Plan the System**
 2. **Build the System**
+
+More details about the architecture can be found at the [backend repo](https://github.com/numinousmuses/brainbase-kafka-backend).
 
 ---
 
@@ -63,7 +71,7 @@
 **Core Functions & Endpoints:**
 
 - **Authentication:**
-  - Very basic auth for development purposes.
+  - Very basic auth for development purposes, not for production environments.
   - Email-based login.
   - Checks for existing email; if new, generates and returns a UUID as a session token.
 
@@ -99,16 +107,16 @@
 
 ### Milestones
 
-1. **Agent for Code Writing and Iteration:**
+1. **Agent for Code Writing and Iteration: DONE ✅**
    - Develop an agent capable of generating and refining code.
 
-2. **Agent for Diff Generation and Application:**
+2. **Agent for Diff Generation and Application: DONE ✅**
    - Create an agent that can produce diffs and apply them to update code.
 
-3. **WebSocket Agent Integration:**
+3. **WebSocket Agent Integration: DONE ✅**
    - Implement the agent to work over websockets for real-time communication.
 
-4. **Client Chat Interface:**
+4. **Client Chat Interface: DONE ✅**
    - Build the frontend chat client to interact with the websocket agent.
 
 ---

@@ -4,6 +4,7 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { WorkspaceCombobox } from "./workspaceCombobox";
+import { BACKEND_BASE_URL } from "@/lib/utils";
 // Shadcn UI components
 import {
   Card,
@@ -102,7 +103,7 @@ export default function Workspace({ workspaceData, userId, fetchedModels }: Work
         }
         
         try {
-          const res = await fetch("http://127.0.0.1:8000/file/upload", {
+          const res = await fetch(`${BACKEND_BASE_URL}file/upload`, {
             method: "POST",
             body: formData,
           });
@@ -146,7 +147,7 @@ export default function Workspace({ workspaceData, userId, fetchedModels }: Work
     formData.append("new_name", newName);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/file/rename", {
+      const res = await fetch(`${BACKEND_BASE_URL}file/rename`, {
         method: "PATCH",
         body: formData,
       });
@@ -168,7 +169,7 @@ export default function Workspace({ workspaceData, userId, fetchedModels }: Work
 
   const handleDeleteFile = async (fileId: string) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/file/delete/${fileId}`, {
+      const res = await fetch(`${BACKEND_BASE_URL}file/delete/${fileId}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -191,7 +192,7 @@ export default function Workspace({ workspaceData, userId, fetchedModels }: Work
     formData.append("new_name", newName);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/chat/rename", {
+      const res = await fetch(`${BACKEND_BASE_URL}chat/rename`, {
         method: "PATCH",
         body: formData,
       });
@@ -215,7 +216,7 @@ export default function Workspace({ workspaceData, userId, fetchedModels }: Work
 
   const handleDeleteChat = async (chatId: string) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/chat/${chatId}`, {
+      const res = await fetch(`${BACKEND_BASE_URL}chat/${chatId}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -246,7 +247,7 @@ export default function Workspace({ workspaceData, userId, fetchedModels }: Work
     });
     
     try {
-      const res = await fetch("http://127.0.0.1:8000/workspace/new", {
+      const res = await fetch(`${BACKEND_BASE_URL}workspace/new`, {
         method: "POST",
         body: formData,
       });
@@ -283,7 +284,7 @@ export default function Workspace({ workspaceData, userId, fetchedModels }: Work
     });
     
     try {
-      const res = await fetch("http://127.0.0.1:8000/chat/new", {
+      const res = await fetch(`${BACKEND_BASE_URL}chat/new`, {
         method: "POST",
         body: formData,
       });
@@ -314,7 +315,7 @@ export default function Workspace({ workspaceData, userId, fetchedModels }: Work
   // Handlers for settings dialog (listing models, adding a model, deleting workspace)
   const handleDeleteWorkspace = async () => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/workspace/delete/${selectedWorkspace.id}`, {
+      const res = await fetch(`${BACKEND_BASE_URL}workspace/delete/${selectedWorkspace.id}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -338,7 +339,7 @@ export default function Workspace({ workspaceData, userId, fetchedModels }: Work
     formData.append("base_url", newModelBaseUrl);
   
     try {
-      const res = await fetch("http://127.0.0.1:8000/models/new", {
+      const res = await fetch(`${BACKEND_BASE_URL}models/new`, {
         method: "POST",
         body: formData,
       });
@@ -361,7 +362,7 @@ export default function Workspace({ workspaceData, userId, fetchedModels }: Work
   
   const handleDeleteModel = async (modelId: string) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/models/delete/${modelId}`, {
+      const res = await fetch(`${BACKEND_BASE_URL}models/delete/${modelId}`, {
         method: "DELETE",
       });
       if (!res.ok) {

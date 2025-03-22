@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useState, useEffect } from "react";
-
+import { BACKEND_BASE_URL } from "@/lib/utils";
 // Shadcn UI components (adjust imports as needed)
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,7 @@ export default function Home() {
 
           console.log("Rehydrating auth response:", authObj);
           const parsedEmail = authObj.email;
-          const res = await fetch("http://127.0.0.1:8000/auth/login", {
+          const res = await fetch( `${BACKEND_BASE_URL}auth/login`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -57,7 +57,7 @@ export default function Home() {
     event.preventDefault();
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/login", {
+      const res = await fetch(`${BACKEND_BASE_URL}auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { WEBSOCKET_BASE_URL } from "@/lib/utils";
 import {
     Select,
     SelectContent,
@@ -171,7 +172,7 @@ export default function ChatPage() {
   };
 
   const connectWebSocket = () => {
-    const ws = new WebSocket(`ws://127.0.0.1:8000/ws/${chatId}`);
+    const ws = new WebSocket(`${WEBSOCKET_BASE_URL}ws/${chatId}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -192,7 +193,7 @@ export default function ChatPage() {
           }
       
           const data = JSON.parse(event.data);
-          console.log("Received WebSocket message:", data);
+        //   console.log("Received WebSocket message:", data);
       
           if (data.chat_name) {
             setBreadcrumbChat(data.chat_name);
@@ -224,11 +225,18 @@ export default function ChatPage() {
               // Update the based files list if it's a new file or modified file
               // Process based file content
                 if (fileContent.based_filename && fileContent.based_content) {
+
+                    // disconnect then reconnect to the websocket
+                    ws.close();
+                    connectWebSocket();
+
                     setBasedFiles(prevFiles => {
                     // Check if the file already exists
                     const existingFileIndex = prevFiles.findIndex(
                         file => file.name === fileContent.based_filename
                     );
+
+                    handleBasedFileSelect(fileContent.based_filename, fileContent.based_content);
             
                     const currentTimestamp = new Date().toISOString();
             
