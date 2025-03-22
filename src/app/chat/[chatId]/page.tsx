@@ -93,9 +93,72 @@ export default function ChatPage() {
   // Handle drag and drop over the entire page (placeholder)
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    // You could extract e.dataTransfer.files and call your upload function.
-    console.log("File(s) dropped", e.dataTransfer.files);
+    const files = e.dataTransfer.files;
+    if (files.length === 0) return;
+    
+    // Process each dropped file
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove the "data:*/*;base64," prefix from the string
+        const base64data = result.split(',')[1];
+        
+        // Ensure the WebSocket is connected before sending the file
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+          console.error("WebSocket is not connected.");
+          return;
+        }
+    
+        const messageData = {
+          action: "upload_file",
+          filename: file.name,
+          file_data: base64data,
+        };
+    
+        wsRef.current.send(JSON.stringify(messageData));
+      };
+      reader.readAsDataURL(file);
+    });
   };
+  
+
+  // Inside your ChatPage component
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Function to handle file selection and upload
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        // Remove the data URL header from the base64 string
+        const result = reader.result as string;
+        const base64data = result.split(',')[1];
+
+        // Ensure the WebSocket is connected before sending the file
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        console.error("WebSocket is not connected.");
+        return;
+        }
+
+        const messageData = {
+        action: "upload_file",
+        filename: file.name,
+        file_data: base64data,
+        };
+
+        wsRef.current.send(JSON.stringify(messageData));
+    };
+
+    reader.readAsDataURL(file);
+    };
+
+    // Function to trigger the file input click
+    const triggerFileSelect = () => {
+        fileInputRef.current?.click();
+    };
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -293,6 +356,14 @@ export default function ChatPage() {
             setBasedFiles(prevFiles =>
               prevFiles.filter(file => file.file_id !== deletedFileId)
             );
+            // reload page
+            window.location.reload();
+            return;
+          }
+
+          if (data.action === "file_uploaded") {
+            // reload page
+            window.location.reload();
             return;
           }
 
@@ -406,18 +477,51 @@ export default function ChatPage() {
   };
 
     // Function to send a delete file request via WebSocket
-    const handleDeleteFile = (fileId: string) => {
+    // Function to send a delete file request via WebSocket
+    const handleDeleteFile = (fileId: string, event?: React.MouseEvent) => {
+        if (event) {
+        event.stopPropagation(); // Prevent the click from selecting the file
+        }
+    
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         console.error("WebSocket is not connected.");
         return;
         }
+
+        console.log("Deleting file with ID:", fileId);
+
+        // Find the file to be deleted
+        const fileToDelete = basedFiles.find(file => file.file_id === fileId);
+        
         const messageData = {
         action: "delete_file",
         file_id: fileId,
         };
         wsRef.current.send(JSON.stringify(messageData));
-        setBasedFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
+        
+        
+        
+        // Update UI state
+        setBasedFiles(prevFiles => prevFiles.filter(file => file.file_id !== fileId));
+        console.log("Deleted file:", fileToDelete);
+        console.log("Updated basedFiles:", basedFiles);
+        
+        // If the deleted file is currently selected, clear the selection or select another file
+        if (fileToDelete && fileToDelete.name === selectedBasedFileName) {
+        // Find the next file to select
+        const remainingFiles = basedFiles.filter(file => file.file_id !== fileId);
+        if (remainingFiles.length > 0) {
+            // Select the first remaining file
+            setSelectedBasedFileName(remainingFiles[0].name);
+            setSelectedBasedFileContent(remainingFiles[0].latest_content);
+        } else {
+            // No files left, clear the selection
+            setSelectedBasedFileName("");
+            setSelectedBasedFileContent("");
+        }
+        }
     };
+  
   
 
   return (
@@ -498,9 +602,16 @@ export default function ChatPage() {
               <div className="p-2 flex-1 overflow-auto">
                 <div className="flex justify-between align-center"> 
                     <h2 className="text-sm text-neutral-400 mb-2">FILES </h2>
-                    <Button variant="ghost" className="cursor-pointer">
+                    <Button variant="ghost" onClick={triggerFileSelect} className="cursor-pointer">
                         <Upload />
                     </Button>
+                    <input
+                        type="file"
+                        accept="*/*"
+                        ref={fileInputRef}
+                        style={{ display: "none" }}
+                        onChange={handleFileUpload}
+                    />
                 </div>
                 <h2 className="text-xs text-neutral-400 mt-4 mb-2">BASED</h2>
                 {basedFiles.map((file) => (
@@ -511,7 +622,7 @@ export default function ChatPage() {
                   >
                     {file.name}
                     <Button
-                        onClick={() => handleDeleteFile(file.file_id)}
+                        onClick={(e) => handleDeleteFile(file.file_id, e)}
                         className="text-xs cursor-pointer"
                         title="Delete file"
                         variant="ghost"
@@ -522,8 +633,16 @@ export default function ChatPage() {
                 ))}
                 <h2 className="text-xs text-neutral-400 mt-4 mb-2">CONTEXT</h2>
                 {contextFiles.map((file) => (
-                  <div key={file.file_id} className="p-2 text-base rounded mb-1 cursor-pointer hover:bg-neutral-800">
+                  <div key={file.file_id} className="p-2 text-base rounded mb-1 cursor-pointer hover:bg-neutral-800 flex justify-between align-center">
                     {file.name}
+                    <Button
+                        onClick={(e) => handleDeleteFile(file.file_id, e)}
+                        className="text-xs cursor-pointer"
+                        title="Delete file"
+                        variant="ghost"
+                    >
+                        <Trash />
+                    </Button>
                   </div>
                 ))}
                 <div className="mt-4">
