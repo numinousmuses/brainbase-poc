@@ -99,10 +99,7 @@ export default function ChatPage() {
     setSelectedBasedFileContent(fileContent);
   };
 
-  // Establish WebSocket connection on load and update the UI based on messages
-  useEffect(() => {
-    if (!chatId) return;
-
+  const connectWebSocket = () => {
     const ws = new WebSocket(`ws://127.0.0.1:8000/ws/${chatId}`);
     wsRef.current = ws;
 
@@ -111,6 +108,7 @@ export default function ChatPage() {
     };
 
     ws.onmessage = (event) => {
+        setIsSending(false);
         try {
           // For text messages
           if (typeof event.data === 'string' && !event.data.startsWith('{')) {
@@ -317,21 +315,52 @@ export default function ChatPage() {
       
 
     ws.onclose = () => {
+      setIsSending(false);
       console.log("WebSocket connection closed");
     };
+  }
 
+  // Initialize WebSocket connection on mount
+  useEffect(() => {
+    if (chatId) {
+      connectWebSocket();
+    }
+    // Cleanup on unmount
     return () => {
-      ws.close();
+      wsRef.current?.close();
     };
   }, [chatId]);
 
+  const ensureWebSocket = (): Promise<void> => {
+    return new Promise((resolve) => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        resolve();
+      } else {
+        // Reconnect and wait until open
+        connectWebSocket();
+        const interval = setInterval(() => {
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            clearInterval(interval);
+            resolve();
+          }
+        }, 100); // check every 100ms
+      }
+    });
+  };
+
+
+
   // Function to send a message via WebSocket
-  const handleSend = () => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      console.error("WebSocket is not connected.");
-      return;
-    }
+  const handleSend = async () => {
+
     setIsSending(true);
+    // Make sure the WebSocket is connected
+    await ensureWebSocket();
+
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        console.error("WebSocket is not connected.");
+        return;
+      }
 
     // Add user message to chat history immediately for better UX
     setChatHistory(prev => [
@@ -470,7 +499,7 @@ export default function ChatPage() {
                 {viewMode === "chat" ? (
                   <div>
                     {chatHistory.map((msg, idx) => (
-                        <div key={idx} className={`mb-2 p-2 rounded ${msg.role === "user" ? "bg-neutral-800" : "bg-neutral-950"}`}>
+                        <div key={idx} className={`mb-2 p-2 rounded ${msg.role === "user" ? "bg-neutral-900" : "bg-neutral-950"}`}>
                             {msg.type === 'file' ? (
                             <div>
                                 <div className="font-medium mb-1">
