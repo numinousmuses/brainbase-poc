@@ -2,19 +2,19 @@
 
 import * as React from "react";
 import { useState, useEffect, DragEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Textarea } from "@/components/ui/textarea"
+import { Textarea } from "@/components/ui/textarea";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -22,12 +22,13 @@ import {
     BreadcrumbList,
     BreadcrumbPage,
     BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
+} from "@/components/ui/breadcrumb";
 import { History, MessageSquare, Upload, CircleHelp, Send } from "lucide-react";
-import { Switch } from "@/components/ui/switch"
+import { Switch } from "@/components/ui/switch";
 
 export default function ChatPage() {
   const router = useRouter();
+  const { chatId } = useParams();
 
   // State for the code viewer (left panel)
   const [selectedBasedFileContent, setSelectedBasedFileContent] = useState<string>("print('Hello from default based file')");
@@ -84,6 +85,65 @@ export default function ChatPage() {
     setSelectedBasedFileContent(fileContent);
   };
 
+  // Establish WebSocket connection on load and update the UI based on messages
+  useEffect(() => {
+    if (!chatId) return;
+
+    const ws = new WebSocket(`ws://127.0.0.1:8000/ws/${chatId}`);
+
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        console.log("Received WebSocket message:", data);
+
+        if (data.chat_name){
+          setBreadcrumbChat(data.chat_name);
+        }
+
+        // Update chat history if payload contains conversation array
+        if (data.conversation) {
+          setChatHistory(data.conversation);
+        }
+        // Update models if payload contains models
+        if (data.models) {
+          setModels(data.models);
+        }
+        // Update based files if payload contains chat_files_based
+        if (data.chat_files_based) {
+          const updatedBasedFiles = data.chat_files_based.map((item: any) => ({
+            id: item.file_id,
+            name: item.name,
+            content: item.latest_content,
+          }));
+          setBasedFiles(updatedBasedFiles);
+        }
+        // Update context files if payload contains chat_files_text
+        if (data.chat_files_text) {
+          const updatedContextFiles = data.chat_files_text.map((item: any) => ({
+            id: item.file_id,
+            name: item.name,
+          }));
+          setContextFiles(updatedContextFiles);
+        }
+      } catch (err) {
+        console.error("Error parsing WebSocket message", err);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket connection closed");
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [chatId]);
+
   return (
     <div 
       className="h-screen"
@@ -100,7 +160,6 @@ export default function ChatPage() {
         <ResizableHandle withHandle />
         
         {/* Right Section: Contains header with breadcrumb and right panels */}
-        
         <ResizablePanel className="flex flex-col w-2/3">
           {/* Header / Breadcrumb */}
           <div className="border-b p-2 flex items-center justify-between">
@@ -158,7 +217,7 @@ export default function ChatPage() {
                 {basedFiles.map((file) => (
                   <div 
                     key={file.id} 
-                    className="p-2  rounded mb-1 cursor-pointer hover:bg-neutral-800"
+                    className="p-2 rounded mb-1 cursor-pointer hover:bg-neutral-800"
                     onClick={() => handleBasedFileSelect(file.content)}
                   >
                     {file.name}
@@ -207,7 +266,7 @@ export default function ChatPage() {
               <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 w-full max-w-2xl border p-5 bg-neutral-950">
                 <Textarea
                   placeholder="Enter message..."
-                  className="w-full p-4 border rounded-5 mb-5  text-white"
+                  className="w-full p-4 border rounded-5 mb-5 text-white"
                   rows={3}
                   value={promptText}
                   onChange={(e) => setPromptText(e.target.value)}

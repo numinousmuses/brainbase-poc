@@ -70,4 +70,5 @@ export interface WsInitialPayload {
   workspace_files: WorkspaceFile[];
   workspace_id: string;
   models: string[];
+  initial: boolean;
 }
