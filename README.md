@@ -15,6 +15,8 @@
 
 More details about the architecture can be found at the [backend repo](https://github.com/numinousmuses/brainbase-kafka-backend).
 
+To run this locally, change the base urls in the `@/lib/utils` file, start up the backend, then run `npm run dev`.
+
 ---
 
 ## Architecture Overview
