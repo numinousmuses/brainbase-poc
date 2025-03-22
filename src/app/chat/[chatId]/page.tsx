@@ -23,7 +23,7 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { History, MessageSquare, Upload, CircleHelp, Send, Loader2 } from "lucide-react";
+import { History, MessageSquare, Upload, CircleHelp, Send, Loader2, Trash } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { ChatFileBased, ChatFileBasedVersion, ChatFileText, ChatMessage } from "@/lib/interfaces";
 import {
@@ -287,6 +287,15 @@ export default function ChatPage() {
             }
           }
 
+          if (data.action === "file_deleted") {
+            const deletedFileId = data.message.deleted_file_id;
+            // Remove the deleted file from the basedFiles list
+            setBasedFiles(prevFiles =>
+              prevFiles.filter(file => file.file_id !== deletedFileId)
+            );
+            return;
+          }
+
           
           // Handle existing data format for conversation, models, files
           if (data.conversation) {
@@ -396,6 +405,21 @@ export default function ChatPage() {
     setPromptText("");
   };
 
+    // Function to send a delete file request via WebSocket
+    const handleDeleteFile = (fileId: string) => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        console.error("WebSocket is not connected.");
+        return;
+        }
+        const messageData = {
+        action: "delete_file",
+        file_id: fileId,
+        };
+        wsRef.current.send(JSON.stringify(messageData));
+        setBasedFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
+    };
+  
+
   return (
     <div 
       className="h-screen"
@@ -482,10 +506,18 @@ export default function ChatPage() {
                 {basedFiles.map((file) => (
                   <div 
                     key={file.file_id} 
-                    className="p-2 rounded mb-1 cursor-pointer hover:bg-neutral-800"
+                    className="p-2 rounded mb-1 cursor-pointer hover:bg-neutral-800 flex justify-between align-center"
                     onClick={() => handleBasedFileSelect(file.name, file.latest_content)}
                   >
                     {file.name}
+                    <Button
+                        onClick={() => handleDeleteFile(file.file_id)}
+                        className="text-xs cursor-pointer"
+                        title="Delete file"
+                        variant="ghost"
+                    >
+                        <Trash />
+                    </Button>
                   </div>
                 ))}
                 <h2 className="text-xs text-neutral-400 mt-4 mb-2">CONTEXT</h2>
