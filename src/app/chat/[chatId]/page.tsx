@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { History, MessageSquare, Upload, CircleHelp, Send, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { ChatFileBased, ChatFileText, ChatMessage } from "@/lib/interfaces";
+import { ChatFileBased, ChatFileBasedVersion, ChatFileText, ChatMessage } from "@/lib/interfaces";
 
 
 interface ChatHistoryItem {
@@ -153,32 +153,51 @@ export default function ChatPage() {
               ]);
       
               // Update the based files list if it's a new file or modified file
-              if (fileContent.based_filename && fileContent.based_content) {
-                setBasedFiles(prevFiles => {
-                  // Check if the file already exists in our list
-                  const existingFileIndex = prevFiles.findIndex(
-                    file => file.name === fileContent.based_filename
-                  );
-      
-                  if (existingFileIndex >= 0) {
-                    // Update existing file
-                    const updatedFiles = [...prevFiles];
-                    updatedFiles[existingFileIndex] = {
-                      ...updatedFiles[existingFileIndex],
-                      latest_content: fileContent.based_content
-                    };
-                    return updatedFiles;
-                  } else {
-                    // Add new file with all required fields
-                    return [...prevFiles, {
-                      file_id: `temp-${Date.now()}`,
-                      name: fileContent.based_filename,
-                      latest_content: fileContent.based_content,
-                      versions: [], 
-                      type: "based"
-                    } as ChatFileBased];
-                  }
+              // Process based file content
+                if (fileContent.based_filename && fileContent.based_content) {
+                    setBasedFiles(prevFiles => {
+                    // Check if the file already exists
+                    const existingFileIndex = prevFiles.findIndex(
+                        file => file.name === fileContent.based_filename
+                    );
+            
+                    const currentTimestamp = new Date().toISOString();
+            
+                    if (existingFileIndex >= 0) {
+                        // Update existing file
+                        const updatedFiles = [...prevFiles];
+                        const updatedFile = {...updatedFiles[existingFileIndex]};
+                        
+                        // Create a new version
+                        const newVersion: ChatFileBasedVersion = {
+                        version_id: `v-${Date.now()}`,
+                        diff: fileContent.based_content,
+                        timestamp: currentTimestamp
+                        };
+                        
+                        // Add to versions array and update latest content
+                        updatedFile.latest_content = fileContent.based_content;
+                        updatedFile.versions = [...updatedFile.versions, newVersion];
+                        
+                        updatedFiles[existingFileIndex] = updatedFile;
+                        
+                        return updatedFiles;
+                    } else {
+                        // Add new file with initial version
+                        return [...prevFiles, {
+                        file_id: `file-${Date.now()}`,
+                        name: fileContent.based_filename,
+                        latest_content: fileContent.based_content,
+                        versions: [{
+                            version_id: `v-${Date.now()}`,
+                            diff: fileContent.based_content,
+                            timestamp: currentTimestamp
+                        }],
+                        type: "based"
+                        } as ChatFileBased];
+                    }
                 });
+  
       
                 // Update the editor if this is the currently selected file or a new file
                 if (!selectedBasedFileName || selectedBasedFileName === fileContent.based_filename) {

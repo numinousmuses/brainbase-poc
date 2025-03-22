@@ -141,7 +141,8 @@ const VersionDiffExplorer: FC<VersionDiffExplorerProps> = ({
   return (
     <div className="version-diff-explorer bg-neutral-950 text-white h-full">
       <div className="flex items-center justify-between p-2 border-b">
-        <h2 className="text-md font-medium text-neutral-200">VERSION HISTORY: {selectedBasedFileName}</h2>
+        <p className="text-md font-medium text-neutral-200">Version Diff Explorer</p>
+        <h2 className="text-md font-medium text-neutral-200">{selectedBasedFileName}</h2>
       </div>
       {/* Instructions when no version is selected */}
       {sortedVersions.length > 0 && !selectedVersion && (
