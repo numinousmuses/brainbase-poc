@@ -1,7 +1,16 @@
 import React, { useState, useEffect, FC } from 'react';
 import { ChatFileBased, ChatFileBasedVersion } from "@/lib/interfaces";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-
+// Version list component
+import { Button } from "@/components/ui/button";
+import { History } from 'lucide-react';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+  } from "@/components/ui/tooltip"
+  
 interface DiffViewProps {
   originalText: string;
   diff: string | undefined;
@@ -75,10 +84,13 @@ interface VersionListProps {
   versions: ChatFileBasedVersion[];
   onSelect: (version: ChatFileBasedVersion) => void;
   selectedVersionId: string | undefined;
+  onRevert?: (version: ChatFileBasedVersion) => void;
 }
 
-// Version list component
-const VersionList: FC<VersionListProps> = ({ versions, onSelect, selectedVersionId }) => {
+
+
+// Inside the VersionList component, add a Revert button
+const VersionList: FC<VersionListProps> = ({ versions, onSelect, selectedVersionId, onRevert }) => {
   return (
     <div className="version-list overflow-auto max-h-[60vh] bg-neutral-950 text-white p-3 rounded">
       <h3 className="text-sm font-medium mb-3 text-white">Version History</h3>
@@ -88,14 +100,37 @@ const VersionList: FC<VersionListProps> = ({ versions, onSelect, selectedVersion
         return (
           <div 
             key={version.version_id}
-            onClick={() => onSelect(version)}
             className={`
               version-item p-2 mb-2 cursor-pointer rounded text-white
               ${selectedVersionId === version.version_id ? 'bg-blue-800/30 border border-blue-500' : 'hover:bg-neutral-800'}
             `}
           >
-            <div className="text-xs font-medium text-white">{isFirst ? 'Latest' : `v${versions.length - index}`}</div>
-            <div className="text-xs text-neutral-300">{formattedDate}</div>
+            <div className="flex justify-between items-center">
+              <div onClick={() => onSelect(version)}>
+                <div className="text-xs font-medium text-white">{isFirst ? 'Latest' : `v${versions.length - index}`}</div>
+                <div className="text-xs text-neutral-300">{formattedDate}</div>
+              </div>
+              {!isFirst && selectedVersionId === version.version_id && (
+                
+                <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-xs bg-blue-900 hover:bg-blue-800 border-blue-700 cursor-pointer"
+                    onClick={() => onRevert && onRevert(version)}
+                    >
+                        <History />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Revert to this version</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              )}
+            </div>
           </div>
         );
       })}
@@ -103,17 +138,20 @@ const VersionList: FC<VersionListProps> = ({ versions, onSelect, selectedVersion
   );
 };
 
+// Update VersionDiffExplorer interface to pass the websocket reference
 interface VersionDiffExplorerProps {
   basedFiles: ChatFileBased[];
   selectedBasedFileName: string;
   selectedBasedFileContent: string;
+  wsRef?: React.MutableRefObject<WebSocket | null>; // Add this
 }
 
 // This is the main component to replace the current diff explorer
 const VersionDiffExplorer: FC<VersionDiffExplorerProps> = ({ 
   basedFiles, 
   selectedBasedFileName, 
-  selectedBasedFileContent 
+  selectedBasedFileContent,
+  wsRef 
 }) => {
   const [selectedVersion, setSelectedVersion] = useState<ChatFileBasedVersion | null>(null);
   const [currentFile, setCurrentFile] = useState<ChatFileBased | null>(null);
@@ -136,6 +174,21 @@ const VersionDiffExplorer: FC<VersionDiffExplorerProps> = ({
   // Handler for selecting a version
   const handleVersionSelect = (version: ChatFileBasedVersion) => {
     setSelectedVersion(version);
+  };
+
+  const handleRevert = (version: ChatFileBasedVersion) => {
+    if (!wsRef?.current || wsRef.current.readyState !== WebSocket.OPEN || !selectedBasedFileName) {
+      console.error("WebSocket is not connected or filename is missing.");
+      return;
+    }
+
+    const revertData = {
+      action: "revert_version",
+      version_id: version.version_id,
+      filename: selectedBasedFileName
+    };
+    
+    wsRef.current.send(JSON.stringify(revertData));
   };
 
   return (
@@ -175,6 +228,7 @@ const VersionDiffExplorer: FC<VersionDiffExplorerProps> = ({
               versions={sortedVersions} 
               onSelect={handleVersionSelect}
               selectedVersionId={selectedVersion?.version_id}
+              onRevert={handleRevert}
             />
           ) : (
             <div className="text-center p-4 text-neutral-400 bg-neutral-900 rounded">

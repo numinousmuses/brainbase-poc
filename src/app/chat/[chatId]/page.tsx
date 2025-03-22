@@ -206,7 +206,81 @@ export default function ChatPage() {
                 }
               }
             }
+          } else if (data.action === "revert_complete") {
+            setIsSending(false);
+            const responseData = data.message;
+            
+            // Process the reverted file update
+            if (responseData.type === "file" && responseData.content) {
+              const fileContent = typeof responseData.content === 'string'
+                ? JSON.parse(responseData.content)
+                : responseData.content;
+              
+              // Update chat history
+              setChatHistory(prev => [
+                ...prev,
+                {
+                  role: responseData.role,
+                  content: typeof fileContent === 'string'
+                    ? fileContent
+                    : JSON.stringify(fileContent),
+                  type: 'file'
+                } as ChatMessage
+              ]);
+              
+              // Update file in basedFiles list
+              if (fileContent.based_filename && fileContent.based_content) {
+                setBasedFiles(prevFiles => {
+                    // Check if the file already exists
+                    const existingFileIndex = prevFiles.findIndex(
+                        file => file.name === fileContent.based_filename
+                    );
+            
+                    const currentTimestamp = new Date().toISOString();
+            
+                    if (existingFileIndex >= 0) {
+                        // Update existing file
+                        const updatedFiles = [...prevFiles];
+                        const updatedFile = {...updatedFiles[existingFileIndex]};
+                        
+                        // Create a new version
+                        const newVersion: ChatFileBasedVersion = {
+                        version_id: `v-${Date.now()}`,
+                        diff: fileContent.based_content,
+                        timestamp: currentTimestamp
+                        };
+                        
+                        // Add to versions array and update latest content
+                        updatedFile.latest_content = fileContent.based_content;
+                        updatedFile.versions = [...updatedFile.versions, newVersion];
+                        
+                        updatedFiles[existingFileIndex] = updatedFile;
+                        
+                        return updatedFiles;
+                    } else {
+                        // Add new file with initial version
+                        return [...prevFiles, {
+                        file_id: `file-${Date.now()}`,
+                        name: fileContent.based_filename,
+                        latest_content: fileContent.based_content,
+                        versions: [{
+                            version_id: `v-${Date.now()}`,
+                            diff: fileContent.based_content,
+                            timestamp: currentTimestamp
+                        }],
+                        type: "based"
+                        } as ChatFileBased];
+                    }
+                })
+                
+                // Update the editor if this is the currently selected file
+                if (selectedBasedFileName === fileContent.based_filename) {
+                  setSelectedBasedFileContent(fileContent.based_content);
+                }
+              }
+            }
           }
+
           
           // Handle existing data format for conversation, models, files
           if (data.conversation) {
@@ -446,6 +520,7 @@ export default function ChatPage() {
                         basedFiles={basedFiles}
                         selectedBasedFileName={selectedBasedFileName}
                         selectedBasedFileContent={selectedBasedFileContent}
+                        wsRef={wsRef}
                     />
                 )}
               </div>
