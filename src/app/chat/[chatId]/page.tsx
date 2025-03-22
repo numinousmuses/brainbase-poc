@@ -561,6 +561,16 @@ export default function ChatPage() {
                   rows={3}
                   value={promptText}
                   onChange={(e) => setPromptText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      if (e.shiftKey) {
+                        // Shift+Enter sends the message
+                        e.preventDefault();
+                        handleSend();
+                      }
+                      // Otherwise, let Enter insert a newline (default behavior)
+                    }
+                  }}
                 />
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
