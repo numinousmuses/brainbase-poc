@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect, DragEvent } from "react";
+import { useState, useEffect, useRef, DragEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
@@ -25,13 +25,29 @@ import {
 } from "@/components/ui/breadcrumb";
 import { History, MessageSquare, Upload, CircleHelp, Send } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { ChatFileBased, ChatFileText } from "@/lib/interfaces";
+
+
+interface ChatHistoryItem {
+    role: string;
+    content: string;
+    type: string;
+}
+
+import Editor from 'react-simple-code-editor';
+// @ts-ignore
+import { highlight, languages } from 'prismjs/components/prism-core';
+import 'prismjs/components/prism-clike';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/themes/prism.css'; 
 
 export default function ChatPage() {
   const router = useRouter();
   const { chatId } = useParams();
 
   // State for the code viewer (left panel)
-  const [selectedBasedFileContent, setSelectedBasedFileContent] = useState<string>("print('Hello from default based file')");
+  const [selectedBasedFileContent, setSelectedBasedFileContent] = useState<string>("");
+  const [selectedBasedFileName, setSelectedBasedFileName] = useState<string>("");
 
   // state for chat or composer mode
   const [isChatOrComposer, setIsChatOrComposer] = useState(false); // if false is composer
@@ -48,26 +64,20 @@ export default function ChatPage() {
   const [selectedModel, setSelectedModel] = useState<string>("Model A");
 
   // Placeholder file explorer lists
-  const [basedFiles, setBasedFiles] = useState<{ id: string; name: string; content: string }[]>([
-    { id: "based-1", name: "script.based", content: "print('Based file 1 content')" },
-    { id: "based-2", name: "analysis.based", content: "print('Based file 2 content')" },
-  ]);
-  const [contextFiles, setContextFiles] = useState<{ id: string; name: string }[]>([
-    { id: "ctx-1", name: "notes.txt" },
-    { id: "ctx-2", name: "reference.pdf" },
-  ]);
+  const [basedFiles, setBasedFiles] = useState<ChatFileBased[]>([]);
+  const [contextFiles, setContextFiles] = useState<ChatFileText[]>([]);
 
   // Chat history placeholder
-  const [chatHistory, setChatHistory] = useState([
-    { role: "user", content: "Hello, how do I use this tool?" },
-    { role: "assistant", content: "You can click on the based file to see its content." },
-  ]);
+  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
 
   // Version diff placeholder state for diff explorer
   const [versionDiff, setVersionDiff] = useState<string>("Diff output placeholder...");
 
   // Prompt text
   const [promptText, setPromptText] = useState<string>("");
+
+  // Ref for WebSocket instance
+  const wsRef = useRef<WebSocket | null>(null);
 
   // Handle drag and drop over the entire page (placeholder)
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -80,9 +90,10 @@ export default function ChatPage() {
     e.preventDefault();
   };
 
-  // When a based file is clicked, update the left panel's code content.
-  const handleBasedFileSelect = (fileContent: string) => {
-    setSelectedBasedFileContent(fileContent);
+  // When a based file is clicked, update the left panel's code content and record the file name.
+  const handleBasedFileSelect = (fileName: string, fileContent: string) => {
+    setSelectedBasedFileName(fileName);
+    setSelectedBasedFileContent(JSON.parse(fileContent).text);
   };
 
   // Establish WebSocket connection on load and update the UI based on messages
@@ -90,6 +101,7 @@ export default function ChatPage() {
     if (!chatId) return;
 
     const ws = new WebSocket(`ws://127.0.0.1:8000/ws/${chatId}`);
+    wsRef.current = ws;
 
     ws.onopen = () => {
       console.log("WebSocket connected");
@@ -104,7 +116,6 @@ export default function ChatPage() {
         if (data.chat_name){
           setBreadcrumbChat(data.chat_name);
         }
-
         // Update chat history if payload contains conversation array
         if (data.conversation) {
           setChatHistory(data.conversation);
@@ -116,16 +127,17 @@ export default function ChatPage() {
         // Update based files if payload contains chat_files_based
         if (data.chat_files_based) {
           const updatedBasedFiles = data.chat_files_based.map((item: any) => ({
-            id: item.file_id,
+            file_id: item.file_id,
             name: item.name,
-            content: item.latest_content,
+            latest_content: item.latest_content,
           }));
           setBasedFiles(updatedBasedFiles);
+          handleBasedFileSelect(updatedBasedFiles[0].name, updatedBasedFiles[0].latest_content);
         }
         // Update context files if payload contains chat_files_text
         if (data.chat_files_text) {
           const updatedContextFiles = data.chat_files_text.map((item: any) => ({
-            id: item.file_id,
+            file_id: item.file_id,
             name: item.name,
           }));
           setContextFiles(updatedContextFiles);
@@ -144,6 +156,24 @@ export default function ChatPage() {
     };
   }, [chatId]);
 
+  // Function to send a message via WebSocket
+  const handleSend = () => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      console.error("WebSocket is not connected.");
+      return;
+    }
+    const messageData = {
+      action: "new_message",
+      prompt: promptText,
+      model: selectedModel,
+      is_first_prompt: basedFiles.length === 0 || chatHistory.length === 0,
+      is_chat_or_composer: !isChatOrComposer,
+      selected_filename: selectedBasedFileName
+    };
+    wsRef.current.send(JSON.stringify(messageData));
+    setPromptText("");
+  };
+
   return (
     <div 
       className="h-screen"
@@ -152,9 +182,22 @@ export default function ChatPage() {
     >
       <ResizablePanelGroup direction="horizontal" className="h-full w-screen">
         {/* Left Panel: Code Viewer */}
-        <ResizablePanel className="p-4 w-1/3">
-          <div className="language-python bg-neutral-950">
-            <code>{selectedBasedFileContent}</code>
+        <ResizablePanel className="p-4 w-1/3 ">
+          <div className="language-python bg-neutral-950 overflow-y-auto h-lvh p-2">
+            <pre style={{ whiteSpace: "pre-wrap" }} className="text-xs">
+                <Editor
+                    value={selectedBasedFileContent}
+                    onValueChange={code => setSelectedBasedFileContent(code)}
+                    highlight={code => highlight(code, languages.js)}
+                    padding={10}
+                    style={{
+                        fontSize: 12,
+                        outline: "none",
+                        border: "none",
+                        height: "100%"
+                    }}
+                />
+            </pre>
           </div>
         </ResizablePanel>
         <ResizableHandle withHandle />
@@ -216,16 +259,16 @@ export default function ChatPage() {
                 <h2 className="text-xs text-neutral-400 mt-4 mb-2">BASED</h2>
                 {basedFiles.map((file) => (
                   <div 
-                    key={file.id} 
+                    key={file.file_id} 
                     className="p-2 rounded mb-1 cursor-pointer hover:bg-neutral-800"
-                    onClick={() => handleBasedFileSelect(file.content)}
+                    onClick={() => handleBasedFileSelect(file.name, file.latest_content)}
                   >
                     {file.name}
                   </div>
                 ))}
                 <h2 className="text-xs text-neutral-400 mt-4 mb-2">CONTEXT</h2>
                 {contextFiles.map((file) => (
-                  <div key={file.id} className="p-2 text-base rounded mb-1 cursor-pointer hover:bg-neutral-800">
+                  <div key={file.file_id} className="p-2 text-base rounded mb-1 cursor-pointer hover:bg-neutral-800">
                     {file.name}
                   </div>
                 ))}
@@ -287,7 +330,7 @@ export default function ChatPage() {
                   </div>
                   
                   <div>
-                    <Button className="cursor-pointer">
+                    <Button onClick={handleSend} className="cursor-pointer">
                         <Send />
                     </Button>
                   </div>

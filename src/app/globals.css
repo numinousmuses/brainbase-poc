@@ -86,3 +86,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Hide all scrollbars */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* remove focus lines from textareas when selected */
+textarea:focus {
+  outline: none;
+  box-shadow: none;
+}
