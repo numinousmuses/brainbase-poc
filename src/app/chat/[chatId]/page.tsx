@@ -26,7 +26,15 @@ import {
 import { History, MessageSquare, Upload, CircleHelp, Send, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { ChatFileBased, ChatFileBasedVersion, ChatFileText, ChatMessage } from "@/lib/interfaces";
-
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+  } from "@/components/ui/dialog"
+  
 
 interface ChatHistoryItem {
     role: string;
@@ -580,10 +588,37 @@ export default function ChatPage() {
                     <span className="ml-2">{isChatOrComposer ? "CHAT" : "COMPOSER"}</span>
                     <div className="ml-4">
                         {/* Placeholder for help icon */}
-                        <Button variant="ghost" className="cursor-pointer">
-                            <CircleHelp />
-                            Help
-                        </Button>
+                        
+                        <Dialog>
+                            <DialogTrigger>
+                                <Button variant="ghost" className="cursor-pointer">
+                                    <CircleHelp />
+                                    Help
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Vibe coded agents?!</DialogTitle>
+                                    Kafka lets you build agents from prompts
+                                </DialogHeader>
+                                <DialogDescription>
+                                    Type a prompt to generate a based agent
+                                </DialogDescription>
+                                <DialogDescription>
+                                    Upload PDF or text files for context (drag and drop supported)
+                                </DialogDescription>
+                                <DialogDescription>
+                                    You can shift+enter to send a message
+                                </DialogDescription>
+                                <DialogDescription>
+                                    History icon toggles between version control and chat.
+                                </DialogDescription>
+                                <DialogDescription>
+                                    Toggle switches between composer (generating code) and chat mode
+                                </DialogDescription>
+                            </DialogContent>
+                        </Dialog>
+
                     </div>
                   </div>
                   
