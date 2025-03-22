@@ -356,17 +356,34 @@ export default function ChatPage() {
             setBasedFiles(prevFiles =>
               prevFiles.filter(file => file.file_id !== deletedFileId)
             );
+
+            setContextFiles(prevFiles =>
+              prevFiles.filter(file => file.file_id !== deletedFileId)
+            );
             // reload page
-            window.location.reload();
+            // window.location.reload();
             return;
           }
 
           if (data.action === "file_uploaded") {
-            // reload page
-            window.location.reload();
+            // Parse file upload response and update context files
+            const fileData = typeof data.message.content === "string" 
+              ? JSON.parse(data.message.content) 
+              : data.message.content;
+          
+            // Add the new file to the context files list
+            setContextFiles(prevFiles => [
+                ...prevFiles,
+                {
+                  file_id: fileData.file_id,
+                  name: fileData.filename,
+                  path: fileData.path,
+                  type: "context",
+                  content: "" // Add an empty content property
+                }
+              ]);
             return;
           }
-
           
           // Handle existing data format for conversation, models, files
           if (data.conversation) {
@@ -488,7 +505,6 @@ export default function ChatPage() {
         return;
         }
 
-        console.log("Deleting file with ID:", fileId);
 
         // Find the file to be deleted
         const fileToDelete = basedFiles.find(file => file.file_id === fileId);
@@ -503,8 +519,7 @@ export default function ChatPage() {
         
         // Update UI state
         setBasedFiles(prevFiles => prevFiles.filter(file => file.file_id !== fileId));
-        console.log("Deleted file:", fileToDelete);
-        console.log("Updated basedFiles:", basedFiles);
+        setContextFiles(prevFiles => prevFiles.filter(file => file.file_id !== fileId));
         
         // If the deleted file is currently selected, clear the selection or select another file
         if (fileToDelete && fileToDelete.name === selectedBasedFileName) {
